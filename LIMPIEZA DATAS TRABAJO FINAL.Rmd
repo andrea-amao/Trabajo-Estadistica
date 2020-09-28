@@ -1,0 +1,323 @@
+#ENTREGA 2
+#librerias a utilizar posiblemente
+```{r}
+library(rio)
+library(haven)
+library(htmltab)
+library(tidyr)
+library(stringr)#para limpieza de columnas (extracción de numeros, particiones)
+library(magrittr)
+library(readr) #para extraer un único numero de la columna
+```
+### DATAS
+#extrayendo data de relación de PROVINCIAS - PRO
+```{r}
+LinkP='https://es.wikipedia.org/wiki/Anexo:Provincias_del_Per%C3%BA'
+xpathP= '//*[@id="mw-content-text"]/div[1]/table'
+
+PRO= htmltab(doc= LinkP, which = xpathP)
+PRO[duplicated(PRO$Provincia),] #NO HAY 
+```
+#extrayendo data CEM
+```{r}
+LinkCEM = 'https://github.com/akemygonal/TRABAJO-ESTADISTICA/blob/master/CEMS%20SUCIA.sav?raw=true'
+CEM = import(LinkCEM)
+```
+#extayendo data COMISARIAS - COM
+```{r}
+linkCOM= 'https://github.com/akemygonal/TRABAJO-ESTADISTICA/blob/master/COMISARIAS%20SUCIA.sav?raw=true'
+COM= import(linkCOM)
+```
+#extrayendo data LENGUA MATERNA - LEN
+```{r}
+LinkLEN ='https://github.com/DanielaAnicama/BasesDeDatosTrabajoFinal/blob/master/LenguaMaterna.xlsx?raw=true'
+LEN = import(LinkLEN)
+```
+#extrayendo data NIVEL EDUCATIVO - EDU
+```{r}
+LinkEDU ='https://github.com/ShayuryChavezV/TrabajoG/blob/master/NivelEducativo.xlsx?raw=true'
+EDU = import(LinkEDU)
+```
+#extrayendo data de INDICE DE DENSIDAD DEL ESTADO - IDE
+```{r}
+LinkIDE ='https://github.com/andrea-amao/Trabajo-Estadistica/raw/master/IDE_Sucia.xlsx'
+IDE = import(LinkIDE)
+```
+### LIMPIEZA DE BASES
+#limpieza PROVINCIAS REFERENCIAL
+```{r}
+#Seleccionamos las columnas a usar
+PRO= PRO[,c(2,3)]
+
+#Eliminamos los espacios hallados en los nombres de la columna Provincia
+gsub(' ',"",PRO$Provincia)
+PRO$Provincia = gsub(' ',"",PRO$Provincia)
+PRO$Provincia
+
+#Eliminamos los espacios hallados en los nombres de la columna Provincia
+gsub(' ',"",PRO$Provincia)
+
+#Eliminamos problema de tildes
+PRO$Provincia = gsub(' ',"",PRO$Provincia)
+PRO$Provincia = gsub('Ã¡',"á",PRO$Provincia)
+PRO$Provincia = gsub('Ã©',"é",PRO$Provincia)
+PRO$Provincia = gsub('Ã³',"ó",PRO$Provincia)
+PRO$Provincia = gsub('Ãº',"ú",PRO$Provincia)
+PRO$Provincia = gsub('Ã',"í",PRO$Provincia)
+PRO$Provincia = gsub('±',"ñ",PRO$Provincia)
+PRO$Provincia
+PRO[PRO$Provincia=='Prov.Const.delCallao',"Provincia"]="Callao"
+
+#Vizualimos los nombres de la provincias
+table(PRO$Provincia)
+```
+#limpieza CEM
+```{r}
+#Seleccionamos las columnas a usar
+CEM= CEM[, c(1,25,26)]
+
+##Se realiza el Paste para Ubigeo
+CEM$Ubigeo= paste(CEM$DPTO_DOMICILIO, CEM$PROV_DOMICILIO)
+
+#vemos la estructura
+str(CEM$ubigeo)
+
+#seleccionamos las columnas a usar
+CEM= CEM[,c(1,4)]
+
+#eliminamos los espacios de los números del Ubigeo
+CEM$Ubigeo= gsub(' ','',CEM$Ubigeo)
+
+#Renombrando variables
+names(CEM)[1] = "CEM"
+names(CEM)[2] = "Ubigeo"
+
+#Merge necesario con PRO para tener las provincias de cada CEM
+library(readr)
+CEM_FINAL=merge(CEM,PRO, by.x= 'Ubigeo', by.y='Ubigeo')
+
+#realizamos la suma/conteo de las provincias, según Ubigeo, que se repiten
+names(CEM_FINAL)
+CEM_FINAL$Provincia=1
+CEM_FINAL <- aggregate (cbind(Provincia)~Ubigeo, data=CEM_FINAL, sum)
+
+myvars <- c("Ubigeo", "Provincia")
+CEM_FINAL <- CEM_FINAL[myvars]
+
+#cambiamos el nombre de Provincias a Número denunicas CEMs
+names(CEM_FINAL)[2] = "Número denuncias CEMS"
+
+#Merge para la data CEM_FINAL con PRO
+CEM_FINAL=merge(CEM_FINAL,PRO, by.x= 'Ubigeo', by.y='Ubigeo')
+
+#necesario eliminar el Ubigeo de la data CEM_FINAL para el MERGE FINAL
+CEM_FINAL$Ubigeo=NULL
+```
+#limpieza COM
+```{r}
+#Seleccionamos las columnas a usar
+COM= COM[, c(1,2)]
+
+#Renombrando
+names(COM)[1] = "COM ID"
+names(COM)[2] = "Ubigeo"
+
+#quitamos los 2 ultimos digitos del Ubigeo
+COM$Ubigeo= substr(COM$Ubigeo, start = 1, stop = 4)
+
+#Merge necesario con PRO para tener las provincias de cada CEM
+library(readr)
+COM_FINAL=merge(COM,PRO, by.x= 'Ubigeo', by.y='Ubigeo')
+
+#realizamos la suma/conteo de las provincias, según Ubigeo, que se repiten 
+names(COM_FINAL)
+COM_FINAL$Provincia=1
+COM_FINAL <- aggregate (cbind(Provincia)~Ubigeo, data=COM_FINAL, sum)
+
+myvars <- c("Ubigeo", "Provincia")
+COM_FINAL <- COM_FINAL[myvars]
+
+##cambiamos el nombre de Provincias a Número de COMS
+names(COM_FINAL)[2] = "Número de COMS"
+
+#Merge para la data COM_FINAL con PRO
+COM_FINAL=merge(COM_FINAL,PRO, by.x= 'Ubigeo', by.y='Ubigeo')
+
+#necesario eliminar el Ubigeo de COM_FINAL para el MERGE FINAL
+COM_FINAL$Ubigeo=NULL
+```
+#limpieza IDE
+```{r}
+#Seleccionamos las columnas a usar
+IDE= IDE[, c(1,3,17)]
+
+#Borramos las filas innecesarias
+IDE=IDE[-c(1:4),]
+
+#Cambiamos nombres de variables
+#Chequeamos el nombre de las variables
+names(IDE)
+
+#Renombrando
+names(IDE)[1] = "Ubigeo"
+names(IDE)[2] = "Provincia"
+names(IDE)[3] = "IDE_2017"
+names(IDE)
+
+#Eliminamos los espacios hallados en los nombres de la columna Provincia
+gsub(' ',"",IDE$Provincia)
+IDE$Provincia = gsub(' ',"",IDE$Provincia)
+IDE$Provincia
+
+#necesario eliminar el Ubigeo de IDE para el MERGE FINAL
+IDE$Ubigeo=NULL
+```
+#limpieza EDU 
+```{r}
+#Eliminamos las columnas y filas innecesarias
+EDU=EDU[-c(1:7),] #FILAS
+EDU$'Área Geográfica'=NULL
+EDU=EDU[-c(197:202),]
+
+#Cambiamos de nombre a las columnas
+names(EDU)[1]='Provincia'
+names(EDU)[2]='SinNivel'
+names(EDU)[3]='Inicial'
+names(EDU)[4]='Primaria'
+names(EDU)[5]='Secundaria'
+names(EDU)[6]='BasicaEspecial'
+names(EDU)[7]='SuperiorNoUniversitariaIncompleta'
+names(EDU)[8]='SuperiorNoUniversitariacompleta'
+names(EDU)[9]='SuperiorUniversitariaIncompleta'
+names(EDU)[10]='SuperiorUniversitariacompleta'
+names(EDU)[11]='MaestriaDoctorado'
+names(EDU)[12]='Total'
+
+#Usamos el codigo str_split para dividir la columna Provincia, usando como patrón los dos puntos (:)
+library(stringr)
+str_split(string = EDU$Provincia,
+          pattern = ':',
+          simplify=T)
+
+EDU$Provincia=str_split(string = EDU$Provincia,
+          pattern = ':',
+          simplify=T)[,2]
+EDU$Provincia
+
+#Eliminamos los espacios hallados en los nombres de la columna Provincia
+gsub(' ',"",EDU$Provincia)
+EDU$Provincia = gsub(' ',"",EDU$Provincia)
+EDU$Provincia
+
+#convertir a numerica
+EDU[,c(2:12)]=lapply(EDU[,c(2:12)],as.numeric)
+
+
+#Añadimos nombre a las filas restantes
+EDU[145,1]="Manu"
+EDU[146,1]="Tahuamanu"
+EDU[147,1]="Tambopata"
+EDU[162,1]="Callao"
+
+#necesario eliminar el Total de EDU para el MERGE FINAL
+EDU$Total=NULL
+```
+#limpieza LEN 
+```{r}
+#Eliminamos las columnas y filas innecesarias
+LEN=LEN[-c(1:7),]
+LEN$'Área Geográfica'=NULL
+LEN=LEN[-c(197:202),] #OBSERVACIÓN
+
+#Cambiamos el nombre de las columnas
+names(LEN)[1]='Provincia'
+names(LEN)[2]='Quechua'
+names(LEN)[3]='Aimara'
+names(LEN)[4]='Ashaninka'
+names(LEN)[5]='AwajúnAguaruna'
+names(LEN)[6]='ShipiboKonibo'
+names(LEN)[7]='ShawiChayahuita'
+names(LEN)[8]='Matsigenka'
+names(LEN)[9]='Achuar'
+names(LEN)[10]='OtraLenguaNativa'
+names(LEN)[11]='Castellano'
+names(LEN)[12]='Portugues'
+names(LEN)[13]='OtraLenguaExtranjera'
+names(LEN)[14]='LenguajeSeñas'
+names(LEN)[15]='NoEscuchaNiHabla'
+names(LEN)[16]='Wampis'
+names(LEN)[17]='Kichwa'
+names(LEN)[18]='Nomatsigenga'
+names(LEN)[19]='Tikuna'
+names(LEN)[20]='Urarina'
+names(LEN)[21]='Yine'
+names(LEN)[22]='Yanesha'
+names(LEN)[23]='KandoziChapra'
+names(LEN)[24]='Kakataibo'
+names(LEN)[25]='Matses'
+names(LEN)[26]='KukamaKukamiria'
+names(LEN)[27]='Yagua'
+names(LEN)[28]='Secoya'
+names(LEN)[29]='Harakbut'
+names(LEN)[30]='Yaminahua'
+names(LEN)[31]='Jaqaru'
+names(LEN)[32]='MuruiMuinani'
+names(LEN)[33]='Kakinte'
+names(LEN)[34]='Amahuaca'
+names(LEN)[35]='Arabela'
+names(LEN)[36]='Nahua'
+names(LEN)[37]='EseEja'
+names(LEN)[38]='Capanahua'
+names(LEN)[39]='Maijuna'
+names(LEN)[40]='Ocaina'
+names(LEN)[41]='Sharanahua'
+names(LEN)[42]='Cauqui'
+names(LEN)[43]='Shiwilu'
+names(LEN)[44]='Cashinahua'
+names(LEN)[45]='Isconahua'
+names(LEN)[46]='Omagua'
+names(LEN)[47]='NoSabeNoResponde'
+names(LEN)[48]='Total'
+
+#Usamos el codigo str_split para dividir la columna Provincia, usando como patrón los dos puntos (:)
+str_split(string = LEN$Provincia,
+          pattern = ':',
+          simplify=T)
+LEN$Provincia=str_split(string = LEN$Provincia,
+          pattern = ':',
+          simplify=T)[,2] #columna 2 de provincia que es la provincia, la columna 1 es el departamento
+LEN$Provincia
+
+#Eliminamos los espacios hallados en los nombres de la columna Provincia. Además, reemplazamos los guiones (-) por el numero 0
+gsub(' ',"",LEN$Provincia)
+LEN$Provincia = gsub(' ',"",LEN$Provincia)
+
+#convertir a numerica
+LEN[,c(2:48)]=lapply(LEN[,c(2:48)],as.numeric)
+
+#Añadimos nombre a las columnas restantes
+LEN[145,1]="Manu"
+LEN[146,1]="Tahuamanu"
+LEN[147,1]="Tambopata"
+LEN[162,1]="Callao"
+
+#necesario eliminar el Total de LEN para el MERGE FINAL
+LEN$Total=NULL
+```
+#EXPORTAR DATAS
+```{r}
+export(CEM_FINAL,"CEM_FINALLIMPIA.xlsx")
+export(COM_FINAL,"COM_FINALLIMPIA.xlsx")
+export(IDE,"IDELIMPIA.xlsx")
+export(LEN,"LENLIMPIA.xlsx")
+export(EDU,"EDULIMPIA.xlsx")
+```
+#MERGE FINAL CON DATAS LIMPIAS
+```{r}
+#AHORA SÍ PROCEDEMOS A REALIZAR
+M1=merge(CEM_FINAL,COM_FINAL, by.x= 'Provincia', by.y='Provincia')
+M2=merge(M1,IDE, by.x= 'Provincia', by.y='Provincia')
+M3=merge(M2,EDU, by.x= 'Provincia', by.y='Provincia')
+DATA_FINAL=merge(M3,LEN, by.x= 'Provincia', by.y='Provincia')
+```
+
