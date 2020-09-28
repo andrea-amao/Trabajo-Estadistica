@@ -1,0 +1,88 @@
+#ENTREGA 2
+#librerias a utilizar posiblemente
+```{r}
+library(rio)
+library(haven)
+library(htmltab)
+library(tidyr)
+library(stringr)#para limpieza de columnas (extracción de numeros, particiones)
+library(magrittr)
+library(readr) #para extraer un único numero de la columna
+```
+### DATAS
+#extrayendo data de relación de PROVINCIAS - PRO
+```{r}
+LinkP='https://es.wikipedia.org/wiki/Anexo:Provincias_del_Per%C3%BA'
+xpathP= '//*[@id="mw-content-text"]/div[1]/table'
+
+PRO= htmltab(doc= LinkP, which = xpathP)
+PRO[duplicated(PRO$Provincia),] #NO HAY 
+```
+
+```
+#extrayendo data de INDICE DE DENSIDAD DEL ESTADO - IDE
+```{r}
+LinkIDE ='https://github.com/andrea-amao/Trabajo-Estadistica/raw/master/IDE_Sucia.xlsx'
+IDE = import(LinkIDE)
+```
+### LIMPIEZA DE BASES
+#limpieza PROVINCIAS REFERENCIAL
+```{r}
+#Seleccionamos las columnas a usar
+PRO= PRO[,c(2,3)]
+
+#Eliminamos los espacios hallados en los nombres de la columna Provincia
+gsub(' ',"",PRO$Provincia)
+PRO$Provincia = gsub(' ',"",PRO$Provincia)
+PRO$Provincia
+
+#Eliminamos los espacios hallados en los nombres de la columna Provincia
+gsub(' ',"",PRO$Provincia)
+
+#Eliminamos problema de tildes
+PRO$Provincia = gsub(' ',"",PRO$Provincia)
+PRO$Provincia = gsub('Ã¡',"á",PRO$Provincia)
+PRO$Provincia = gsub('Ã©',"é",PRO$Provincia)
+PRO$Provincia = gsub('Ã³',"ó",PRO$Provincia)
+PRO$Provincia = gsub('Ãº',"ú",PRO$Provincia)
+PRO$Provincia = gsub('Ã',"í",PRO$Provincia)
+PRO$Provincia = gsub('±',"ñ",PRO$Provincia)
+PRO$Provincia
+PRO[PRO$Provincia=='Prov.Const.delCallao',"Provincia"]="Callao"
+
+#Vizualimos los nombres de la provincias
+table(PRO$Provincia)
+```
+
+#limpieza IDE
+```{r}
+#Seleccionamos las columnas a usar
+IDE= IDE[, c(1,3,17)]
+
+#Borramos las filas innecesarias
+IDE=IDE[-c(1:4),]
+
+#Cambiamos nombres de variables
+#Chequeamos el nombre de las variables
+names(IDE)
+
+#Renombrando
+names(IDE)[1] = "Ubigeo"
+names(IDE)[2] = "Provincia"
+names(IDE)[3] = "IDE_2017"
+names(IDE)
+
+#Eliminamos los espacios hallados en los nombres de la columna Provincia
+gsub(' ',"",IDE$Provincia)
+IDE$Provincia = gsub(' ',"",IDE$Provincia)
+IDE$Provincia
+
+#necesario eliminar el Ubigeo de IDE para el MERGE FINAL
+IDE$Ubigeo=NULL
+```
+
+
+```{r}
+export(IDE,"IDELIMPIA.xlsx")
+```
+
